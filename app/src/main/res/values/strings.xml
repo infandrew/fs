@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">PhoneSafe</string>
+    <string name="action_settings">Settings</string>
+    <string name="NoPeersFound">NoPeersFound</string>
+    <string name="ConnectionFailure">ConnectionFailure</string>
+    <string name="ConnectionTerminateddMsg">Gear disconnected</string>
+    <string name="ConnectionAcceptedMsg">Gear connected</string>
+    <string name="ListviewEmptyMessage">Please add files to Safe</string>
+
+</resources>
