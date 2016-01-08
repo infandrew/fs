@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.pillows.phonesafe"
-        minSdkVersion 19
+        minSdkVersion 18
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -33,6 +33,7 @@ dependencies {
 
     compile 'com.android.support:appcompat-v7:23.1.1'
     compile 'com.android.support:design:23.1.1'
+    compile 'com.nononsenseapps:filepicker:2.5.0'
 
     testCompile 'junit:junit:4.12'
     testCompile 'commons-io:commons-io:2.4'

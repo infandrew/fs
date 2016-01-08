@@ -1,10 +1,17 @@
 package com.pillows.encryption;
 
+import android.content.ContentResolver;
+import android.net.Uri;
 import android.util.Log;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.security.SecureRandom;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.crypto.Cipher;
@@ -26,7 +33,7 @@ public class Encryptor {
     /**
      * Constructor
      *
-     * @param key
+     * @param key string key
      */
     public Encryptor(String key) {
         this(key, DEFAULT_PROVIDER);
@@ -56,7 +63,7 @@ public class Encryptor {
      *
      * @param files paths to files
      */
-    public void encrypt(List<String> files) {
+    public void encrypt(Iterable<String> files) {
         for (String file : files) {
             encrypt(file);
         }
@@ -65,6 +72,28 @@ public class Encryptor {
     public void encrypt(String file) {
         encrypt(file, file + ".enc");
     }
+
+    /**
+     * Encrypt one file
+     *
+     * @param oriUri file uri
+     */
+    /*public void encrypt(ContentResolver contentResolver, Uri oriUri) {
+
+        try (InputStream fis = contentResolver.openInputStream(oriUri);
+             FileOutputStream fos = new FileOutputStream(encFile);
+             CipherOutputStream cos = new CipherOutputStream(fos, encCipher);) {
+
+            int b;
+            byte[] d = new byte[8];
+            while ((b = fis.read(d)) != -1) {
+                cos.write(d, 0, b);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("PhoneSafe", String.format("Failed on encryption of %s", oriUri.getPath()));
+        }
+    }*/
 
     /**
      * Encrypt one file
@@ -137,7 +166,7 @@ public class Encryptor {
         return skey.getEncoded();
     }
 
-    /*public static void secureDelete(File file) throws IOException {
+    public static void secureDelete(File file) throws IOException {
         if (file.exists()) {
             long length = file.length();
             SecureRandom random = new SecureRandom();
@@ -154,5 +183,5 @@ public class Encryptor {
             raf.close();
             file.delete();
         }
-    }    */
+    }
 }

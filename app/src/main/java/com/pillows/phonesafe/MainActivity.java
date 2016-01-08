@@ -2,15 +2,15 @@ package com.pillows.phonesafe;
 
 import android.content.ClipData;
 import android.content.Context;
+import android.content.CursorLoader;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -22,16 +22,27 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import java.io.File;
+import com.nononsenseapps.filepicker.FilePickerActivity;
+import com.pillows.encryption.Encryptor;
+
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int FILE_SELECT_CODE = 0;
+    private static final int FILE_SELECT_CODE1 = 0;
+    private static final int FILE_SELECT_CODE2 = 1;
     private static final String TAG = "PhoneSafe";
+
+    private static final String MY_API_KEY = "Awertwertwergsdfgsdfgz";
+
+
 
     private void showFileChooser() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -40,10 +51,14 @@ public class MainActivity extends AppCompatActivity {
 
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
 
+        // Not working
+        //Uri uri = Uri.parse(Environment.getExternalStorageDirectory().getPath() + "/test/");
+        //intent.setDataAndType(uri, "*/*");
+
         try {
             startActivityForResult(
                     Intent.createChooser(intent, "Select a File to Upload"),
-                    FILE_SELECT_CODE);
+                    FILE_SELECT_CODE1);
         } catch (android.content.ActivityNotFoundException ex) {
             // Potentially direct the user to the Market with a Dialog
             Toast.makeText(this, "Please install a File Manager.",
@@ -51,49 +66,62 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public String getRealPathFromURI(Context context, Uri contentUri) {
-        Cursor cursor = null;
-        try {
-            String[] proj = { MediaStore.Images.Media.DATA };
-            cursor = context.getContentResolver().query(contentUri,  proj, null, null, null);
-            int column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-            cursor.moveToFirst();
-            return cursor.getString(column_index);
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
+    private void showFilePicker() {
+        // This always works
+        Intent i = new Intent(getApplicationContext(), FilePickerActivity.class);
+        // This works if you defined the intent filter
+        // Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+
+        // Set these depending on your use case. These are the defaults.
+        i.putExtra(FilePickerActivity.EXTRA_ALLOW_MULTIPLE, true);
+        i.putExtra(FilePickerActivity.EXTRA_ALLOW_CREATE_DIR, false);
+        i.putExtra(FilePickerActivity.EXTRA_MODE, FilePickerActivity.MODE_FILE_AND_DIR);
+
+        // Configure initial directory by specifying a String.
+        // You could specify a String like "/storage/emulated/0/", but that can
+        // dangerous. Always use Android's API calls to get paths to the SD-card or
+        // internal memory.
+        String startPath = Environment.getExternalStorageDirectory().getPath() + "/test/";
+        i.putExtra(FilePickerActivity.EXTRA_START_PATH, startPath);
+        Log.d(TAG, startPath);
+
+        startActivityForResult(i, FILE_SELECT_CODE1);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        Set<String> pickedFiles = new HashSet<String>();
         switch (requestCode) {
-            case FILE_SELECT_CODE:
+            case FILE_SELECT_CODE1:
                 if (resultCode == RESULT_OK) {
                     if (data != null) {
+
+                        // for multiple files
                         ClipData clipData = data.getClipData();
                         if (clipData != null) {
                             for (int i = 0; i < clipData.getItemCount(); i++) {
                                 ClipData.Item item = clipData.getItemAt(i);
                                 Uri uri = item.getUri();
 
-                                //In case you need image's absolute path
-                                String path = getRealPathFromURI(getApplicationContext(), uri);
+                                String path = uri.getPath();
+                                pickedFiles.add(path);
                                 Log.d(TAG, path);
                             }
                         }
+
+                        // for one file
                         Uri uri = data.getData();
                         if (uri != null) {
-                            for (int i = 0; i < clipData.getItemCount(); i++) {
-                                String path = getRealPathFromURI(getApplicationContext(), uri);
-                                Log.d(TAG, path);
-                            }
+                            String path = uri.getPath();
+                            pickedFiles.add(path);
+                            Log.d(TAG, path);
                         }
                     }
                 }
                 break;
         }
+        Encryptor enc = new Encryptor("102030405060708090");
+        enc.encrypt(pickedFiles);
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -109,7 +137,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                showFileChooser();
+                //showFileChooser();
+                showFilePicker();
             }
         });
 
