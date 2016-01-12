@@ -42,14 +42,19 @@ public class EncryptorTest {
         String inputPath = "src/test/resources/1.jpg";
         String encPath = "src/test/resources/1.enc.jpg";
         String decPath = "src/test/resources/1.dec.jpg";
+        String testPath = "src/test/resources/1.test.jpg";
 
         File inputFile = new File(inputPath);
         File encFile = new File(encPath);
         File decFile = new File(decPath);
+        File testFile = new File(testPath);
+
+        FileUtils.copyFile(inputFile, testFile);
 
         Assert.assertTrue(inputFile.exists());
+        Assert.assertTrue(testFile.exists());
 
-        enc.encrypt(inputPath, encPath);
+        enc.encrypt(testPath, encPath);
 
         Assert.assertTrue(encFile.exists());
 
@@ -61,8 +66,39 @@ public class EncryptorTest {
 
         Assert.assertTrue(FileUtils.contentEquals(inputFile, decFile));
 
-        Assert.assertTrue(encFile.delete());
+        encFile.delete();
         Assert.assertTrue(decFile.delete());
+    }
+
+    /**
+     * Test Encryptor creates files
+     */
+    @Test
+    public void testWatermark() throws IOException {
+        String inputPath = "src/test/resources/1.jpg";
+        String testPath = "src/test/resources/1.test.jpg";
+
+        File inputFile = new File(inputPath);
+        File testFile = new File(testPath);
+
+        FileUtils.copyFile(inputFile, testFile);
+
+        Assert.assertTrue(inputFile.exists());
+        Assert.assertTrue(testFile.exists());
+
+        Encryptor enc = new Encryptor("201025153020", "SUN");
+
+        enc.encrypt(testPath);
+
+        Encryptor enc2 = new Encryptor("201025153020", "SUN");
+
+        enc2.decrypt(testPath);
+
+        Assert.assertTrue(testFile.exists());
+
+        Assert.assertTrue(FileUtils.contentEquals(inputFile, testFile));
+
+        Assert.assertTrue(testFile.delete());
     }
 
 }

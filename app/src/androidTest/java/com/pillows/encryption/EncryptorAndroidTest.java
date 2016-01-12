@@ -69,14 +69,17 @@ public class EncryptorAndroidTest {
         Encryptor enc = new Encryptor("afsdgfhkasdhgfkajsdh");
 
         String inputPath = CACHE_DIR + "1.jpg";
+        String testPath = CACHE_DIR + "1.test.jpg";
         String encPath = CACHE_DIR + "1.enc.jpg";
         String decPath = CACHE_DIR + "1.dec.jpg";
 
         File inputFile = new File(inputPath);
+        File testFile = new File(testPath);
         File encFile = new File(encPath);
         File decFile = new File(decPath);
 
         inputFile.delete();
+        testFile.delete();
         encFile.delete();
         decFile.delete();
 
@@ -87,6 +90,8 @@ public class EncryptorAndroidTest {
         OutputStream cacheFile = new FileOutputStream(inputFile);
 
         copyFile(resourceFile, cacheFile);
+
+        FileUtils.copyFile(inputFile, testFile);
 
         Assert.assertTrue(inputFile.exists());
 
@@ -100,13 +105,102 @@ public class EncryptorAndroidTest {
 
         Assert.assertTrue(decFile.exists());
 
-        Assert.assertTrue(FileUtils.contentEquals(inputFile, decFile));
+        Assert.assertTrue(FileUtils.contentEquals(testFile, decFile));
 
-        Assert.assertTrue(inputFile.delete());
-        Assert.assertTrue(encFile.delete());
+        inputFile.delete();
+        encFile.delete();
+        Assert.assertTrue(testFile.delete());
         Assert.assertTrue(decFile.delete());
     }
 
+
+    /**
+     * Test Encryptor with watermark
+     */
+    @Test
+    public void testWatermark() throws IOException {
+        String inputPath = CACHE_DIR + "1.jpg";
+        String testPath = CACHE_DIR + "1.test.jpg";
+
+        File inputFile = new File(inputPath);
+        File testFile = new File(testPath);
+
+        inputFile.delete();
+        testFile.delete();
+
+        // copy to buffer
+        InputStream resourceFile = Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream("1.jpg");
+
+        OutputStream inputStream = new FileOutputStream(inputFile);
+        copyFile(resourceFile, inputStream);
+
+        FileUtils.copyFile(inputFile, testFile);
+
+        Assert.assertTrue(inputFile.exists());
+        Assert.assertTrue(testFile.exists());
+
+        Assert.assertTrue(FileUtils.contentEquals(inputFile, testFile));
+
+        Encryptor enc = new Encryptor("2010251530201213");
+
+        enc.encrypt(testPath);
+
+        Encryptor enc2 = new Encryptor("2010251530201213");
+
+        enc2.decrypt(testPath);
+
+        Assert.assertTrue(testFile.exists());
+
+        Assert.assertTrue(FileUtils.contentEquals(inputFile, testFile));
+
+        Assert.assertTrue(inputFile.delete());
+        Assert.assertTrue(testFile.delete());
+    }
+
+    /**
+     * Test wrong encryption key
+     */
+    @Test
+    public void testWrong() throws IOException {
+        String inputPath = CACHE_DIR + "1.jpg";
+        String testPath = CACHE_DIR + "1.test.jpg";
+
+        File inputFile = new File(inputPath);
+        File testFile = new File(testPath);
+
+        inputFile.delete();
+        testFile.delete();
+
+        // copy to buffer
+        InputStream resourceFile = Thread.currentThread().getContextClassLoader()
+                .getResourceAsStream("1.jpg");
+
+        OutputStream inputStream = new FileOutputStream(inputFile);
+        copyFile(resourceFile, inputStream);
+
+        FileUtils.copyFile(inputFile, testFile);
+
+        Assert.assertTrue(inputFile.exists());
+        Assert.assertTrue(testFile.exists());
+
+        Assert.assertTrue(FileUtils.contentEquals(inputFile, testFile));
+
+        Encryptor enc = new Encryptor("2010251530201213");
+
+        enc.encrypt(testPath);
+
+        Encryptor enc2 = new Encryptor("201025153020wrong");
+
+        enc2.decrypt(testPath);
+
+        Assert.assertTrue(testFile.exists());
+
+        Assert.assertFalse(FileUtils.contentEquals(inputFile, testFile));
+
+        Assert.assertTrue(inputFile.delete());
+        Assert.assertTrue(testFile.delete());
+    }
 
 
     private void copyFile(InputStream in, OutputStream out) throws IOException {

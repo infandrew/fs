@@ -2,47 +2,46 @@ package com.pillows.phonesafe;
 
 import android.content.ClipData;
 import android.content.Context;
-import android.content.CursorLoader;
 import android.content.Intent;
-import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.AdapterView;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.nononsenseapps.filepicker.FilePickerActivity;
 import com.pillows.encryption.Encryptor;
+import com.pillows.saver.DataSaver;
 
-import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int FILE_SELECT_CODE1 = 0;
-    private static final int FILE_SELECT_CODE2 = 1;
-    private static final String TAG = "PhoneSafe";
 
-    private static final String MY_API_KEY = "Awertwertwergsdfgsdfgz";
+    private static final String TEST_KEY = "Awertwertwergsdfgsdfgz";
 
-
+    private StableArrayAdapter adapter;
 
     private void showFileChooser() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -83,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
         // internal memory.
         String startPath = Environment.getExternalStorageDirectory().getPath() + "/test/";
         i.putExtra(FilePickerActivity.EXTRA_START_PATH, startPath);
-        Log.d(TAG, startPath);
+        Log.d(Settings.TAG, startPath);
 
         startActivityForResult(i, FILE_SELECT_CODE1);
     }
@@ -105,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
 
                                 String path = uri.getPath();
                                 pickedFiles.add(path);
-                                Log.d(TAG, path);
+                                Log.d(Settings.TAG, path);
                             }
                         }
 
@@ -114,14 +113,14 @@ public class MainActivity extends AppCompatActivity {
                         if (uri != null) {
                             String path = uri.getPath();
                             pickedFiles.add(path);
-                            Log.d(TAG, path);
+                            Log.d(Settings.TAG, path);
                         }
                     }
                 }
                 break;
         }
-        Encryptor enc = new Encryptor("102030405060708090");
-        enc.encrypt(pickedFiles);
+        adapter.addAll(pickedFiles);
+        DataSaver.serialize(adapter.getItems(), getCacheDir());
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -132,48 +131,41 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        final List<FileDetails> items = (List) DataSaver.deserialize(getCacheDir());
+
+        final ListView listview = (ListView) findViewById(R.id.listview);
+        listview.setEmptyView(findViewById(R.id.empty));
+        //adapter = new StableArrayAdapter(this, android.R.layout.simple_list_item_1, items);
+        adapter = new StableArrayAdapter(this, R.layout.list_item, items);
+
+        listview.setAdapter(adapter);
+
+        bindButtonActions();
+    }
+
+    private void bindButtonActions() {
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                //showFileChooser();
                 showFilePicker();
             }
         });
 
-        final ListView listview = (ListView) findViewById(R.id.listview);
-        String[] values = new String[] { "Android", "iPhone", "WindowsMobile",
-                "Blackberry", "WebOS", "Ubuntu", "Windows7", "Max OS X",
-                "Linux", "OS/2", "Ubuntu", "Windows7", "Max OS X", "Linux",
-                "OS/2", "Ubuntu", "Windows7", "Max OS X", "Linux", "OS/2",
-                "Android", "iPhone", "WindowsMobile" };
-
-        final List<String> list = Arrays.asList(values);
-
-        listview.setEmptyView(findViewById(R.id.empty));
-
-        final StableArrayAdapter adapter = new StableArrayAdapter(this,
-                android.R.layout.simple_list_item_1, list);
-        listview.setAdapter(adapter);
-
-        listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-
+        FloatingActionButton encfab = (FloatingActionButton) findViewById(R.id.encrypt_fab);
+        encfab.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, final View view,
-                                    int position, long id) {
-                final String item = (String) parent.getItemAtPosition(position);
-                view.animate().setDuration(2000).alpha(0)
-                        .withEndAction(new Runnable() {
-                            @Override
-                            public void run() {
-                                list.remove(item);
-                                adapter.notifyDataSetChanged();
-                                view.setAlpha(1);
-                            }
-                        });
+            public void onClick(View view) {
+                new Encryptor(TEST_KEY).encrypt(adapter.getItemsPaths());
             }
-
+        });
+        FloatingActionButton decfab = (FloatingActionButton) findViewById(R.id.decrypt_fab);
+        decfab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                new Encryptor(TEST_KEY).decrypt(adapter.getItemsPaths());
+            }
         });
     }
 
@@ -199,29 +191,83 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    private class StableArrayAdapter extends ArrayAdapter<FileDetails> {
 
-    private class StableArrayAdapter extends ArrayAdapter<String> {
+        private List<FileDetails> items;
+        private Map<String, FileDetails> itemsMap;
+        private Context context;
 
-        HashMap<String, Integer> mIdMap = new HashMap<String, Integer>();
+        public StableArrayAdapter(Context context, int viewId,
+                                  List<FileDetails> items) {
+            super(context, viewId, items);
+            this.items = items;
+            this.itemsMap = new HashMap<String, FileDetails>();
+            for(FileDetails d: items)
+                itemsMap.put(d.getPath(), d);
+            this.context = context;
+        }
 
-        public StableArrayAdapter(Context context, int textViewResourceId,
-                                  List<String> objects) {
-            super(context, textViewResourceId, objects);
-            for (int i = 0; i < objects.size(); ++i) {
-                mIdMap.put(objects.get(i), i);
+        public List<FileDetails> getItems() {
+            return items;
+        }
+
+        public List<String> getItemsPaths() {
+            List<String> paths = new ArrayList<String>();
+            for (FileDetails item: items) {
+                if (!item.isEncrypted())
+                    paths.add(item.getPath());
+            }
+            return paths;
+        }
+
+        public void addAll(Collection<? extends FileDetails> newItems) {
+            for (FileDetails possibleItem: newItems) {
+                add(possibleItem);
+            }
+        }
+
+        public void add(FileDetails possibleItem) {
+            String filePath = possibleItem.getPath();
+            if (!itemsMap.containsKey(filePath)) {
+                itemsMap.put(filePath, possibleItem);
+                super.add(possibleItem);
             }
         }
 
         @Override
-        public long getItemId(int position) {
-            String item = getItem(position);
-            return mIdMap.get(item);
+        public View getView(final int position, View convertView, ViewGroup parent) {
+            View view = convertView;
+            if (view == null) {
+                LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                view = inflater.inflate(R.layout.list_item, null);
+            }
+
+            //Handle TextView and display string from your list
+            TextView listItemText = (TextView)view.findViewById(R.id.list_item_text);
+            listItemText.setText(items.get(position).getPath());
+
+            //Handle buttons and add onClickListeners
+            ImageButton deleteBtn = (ImageButton)view.findViewById(R.id.list_item_delete);
+
+            deleteBtn.setOnClickListener(new View.OnClickListener(){
+                @Override
+                public void onClick(View v) {
+                    String filePath = items.get(position).getPath();
+                    //do something
+                    items.remove(position); //or some other task
+                    itemsMap.remove(filePath);
+                    notifyDataSetChanged();
+                    DataSaver.serialize(adapter.getItems(), getCacheDir());
+                }
+            });
+
+            return view;
         }
 
-        @Override
-        public boolean hasStableIds() {
-            return true;
+        public void addAll(Set<String> pickedFiles) {
+            for (String possibleItem: pickedFiles) {
+                add(new FileDetails(possibleItem));
+            }
         }
-
     }
 }

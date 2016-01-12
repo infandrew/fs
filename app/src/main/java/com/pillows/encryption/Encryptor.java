@@ -4,6 +4,10 @@ import android.content.ContentResolver;
 import android.net.Uri;
 import android.util.Log;
 
+import com.pillows.phonesafe.Settings;
+
+import org.apache.commons.io.FileUtils;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -11,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -69,75 +74,142 @@ public class Encryptor {
         }
     }
 
+    /**
+     * Encrypt list of files
+     *
+     * @param files paths to files
+     */
+    public void decrypt(Iterable<String> files) {
+        for (String file : files) {
+            decrypt(file);
+        }
+    }
+
     public void encrypt(String file) {
-        encrypt(file, file + ".enc");
+        encrypt(file, file);
+    }
+
+    public void decrypt(String file) {
+        decrypt(file, file);
     }
 
     /**
      * Encrypt one file
      *
-     * @param oriUri file uri
+     * @param oriPath path to file
+     * @param encPath path to encrypted file
      */
-    /*public void encrypt(ContentResolver contentResolver, Uri oriUri) {
+    public void encrypt(String oriPath, String encPath) {
 
-        try (InputStream fis = contentResolver.openInputStream(oriUri);
-             FileOutputStream fos = new FileOutputStream(encFile);
-             CipherOutputStream cos = new CipherOutputStream(fos, encCipher);) {
+        boolean pathNotChanged = false;
+        File oriFile = new File(oriPath);
+        File encFile = new File(encPath);
 
-            int b;
-            byte[] d = new byte[8];
-            while ((b = fis.read(d)) != -1) {
-                cos.write(d, 0, b);
+        if (oriPath.equals(encPath))
+        {
+            pathNotChanged = true;
+            encPath = encPath + ".temp";
+            encFile = new File(encPath);
+            try {
+                FileUtils.copyFile(oriFile, encFile);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.e("PhoneSafe", String.format("Failed on copying of %s -> %s", oriFile, encFile));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            Log.e("PhoneSafe", String.format("Failed on encryption of %s", oriUri.getPath()));
         }
-    }*/
 
-    /**
-     * Encrypt one file
-     *
-     * @param oriFile path to file
-     * @param encFile path to encrypted file
-     */
-    public void encrypt(String oriFile, String encFile) {
-
-        try (FileInputStream fis = new FileInputStream(oriFile);
-             FileOutputStream fos = new FileOutputStream(encFile);
+        try (FileInputStream fis = new FileInputStream(oriPath);
+             FileOutputStream fos = new FileOutputStream(encPath);
              CipherOutputStream cos = new CipherOutputStream(fos, encCipher);) {
 
-            int b;
-            byte[] d = new byte[8];
+            // some kind of watermark
+            int b = 8;
+            byte[] d = Settings.WATERMARK.clone();
+
+            fos.write(d, 0, b);
+
             while ((b = fis.read(d)) != -1) {
                 cos.write(d, 0, b);
             }
+
         } catch (Exception e) {
             e.printStackTrace();
-            Log.e("PhoneSafe", String.format("Failed on encryption of %s", oriFile));
+            Log.e("PhoneSafe", String.format("Failed on encryption of %s", oriPath));
+        }
+
+        try {
+            secureDelete(oriFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("PhoneSafe", String.format("Failed on deleting of %s", oriPath));
+        }
+
+        if (pathNotChanged)
+        {
+            try {
+                FileUtils.moveFile(encFile, oriFile);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.e("PhoneSafe", String.format("Failed on renaming of %s -> %s", encFile, oriFile));
+            }
         }
     }
 
     /**
      * Decrypt one file
      *
-     * @param oriFile path to file
-     * @param decFile path to encrypted file
+     * @param oriPath path to file
+     * @param decPath path to encrypted file
      */
-    public void decrypt(String oriFile, String decFile) {
+    public void decrypt(String oriPath, String decPath) {
 
-        try (FileInputStream fis = new FileInputStream(oriFile);
-             FileOutputStream fos = new FileOutputStream(decFile);
+        boolean pathNotChanged = false;
+        File oriFile = new File(oriPath);
+        File decFile = new File(decPath);
+
+        if (oriPath.equals(decPath))
+        {
+            pathNotChanged = true;
+            decPath = decPath + ".temp";
+            decFile = new File(decPath);
+            try {
+                FileUtils.copyFile(oriFile, decFile);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.e("PhoneSafe", String.format("Failed on copying of %s -> %s", oriFile, decFile));
+            }
+        }
+
+        try (FileInputStream fis = new FileInputStream(oriPath);
+             FileOutputStream fos = new FileOutputStream(decPath);
              CipherOutputStream cos = new CipherOutputStream(fos, decCipher);) {
 
-            int b;
+            // some kind of watermark
+            int b = 8;
             byte[] d = new byte[8];
+            b = fis.read(d);
+
+            if(!Arrays.equals(d, Settings.WATERMARK))
+                throw new Exception("Can't find watermark");
+
             while ((b = fis.read(d)) != -1) {
                 cos.write(d, 0, b);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Log.e("PhoneSafe", String.format("Failed on decryption of %s", oriFile));
+            Log.e("PhoneSafe", String.format("Failed on decryption of %s. %s", oriPath, e.getMessage()));
+        }
+
+        oriFile.delete();
+
+        if (pathNotChanged)
+        {
+            try {
+                FileUtils.moveFile(decFile, oriFile);
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.e("PhoneSafe", String.format("Failed on renaming of %s -> %s", decFile, oriFile));
+            }
         }
     }
 

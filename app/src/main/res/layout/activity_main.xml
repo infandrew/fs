@@ -29,6 +29,23 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="@dimen/fab_margin"
-        android:src="@android:drawable/ic_input_add" />
+        android:src="@drawable/nnf_ic_collections_add_collection" />
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/encrypt_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|left"
+        android:layout_margin="@dimen/fab_margin"
+        android:src="@android:drawable/ic_lock_idle_lock" />
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/decrypt_fab"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="@dimen/fab_margin"
+        android:src="@android:drawable/ic_lock_idle_low_battery" />
+
 
 </android.support.design.widget.CoordinatorLayout>
