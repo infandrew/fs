@@ -1,5 +1,7 @@
 package com.pillows.phonesafe;
 
+import com.pillows.encryption.Encryptor;
+
 import java.io.Serializable;
 
 /**
@@ -14,7 +16,7 @@ public class FileDetails implements Serializable {
      * Constructor
      */
     public FileDetails(String path) {
-        encrypted = false;
+        this.encrypted = Encryptor.checkWatermark(path);
         this.path = path;
     }
 
@@ -25,4 +27,9 @@ public class FileDetails implements Serializable {
     public boolean isEncrypted() {
         return encrypted;
     }
+
+    public void setEncrypted(boolean encrypted) {
+        this.encrypted = encrypted;
+    }
+
 }

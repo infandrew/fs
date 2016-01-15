@@ -29,9 +29,9 @@
 
     <application name="PhoneSafe" >
         <serviceProfile
-            id="/safe/hello"
+            id="/safe/action"
             name="safe"
-            role="provider"
+            role="consumer"
             serviceImpl="com.pillows.accessory.AccessoryService"
             version="1.0"
             serviceLimit="ANY"
@@ -40,11 +40,7 @@
                 <transport type="TRANSPORT_BT" />
                 <transport type="TRANSPORT_WIFI" />
             </supportedTransports>
-            <serviceChannel
-                id="666"
-                dataRate="low"
-                priority="low"
-                reliability= "enable"/>   
+            <serviceChannel id="228" dataRate="low" priority="low" reliability= "enable"/>
     </serviceProfile>
     </application>
 

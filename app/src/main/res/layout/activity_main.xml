@@ -47,5 +47,21 @@
         android:layout_margin="@dimen/fab_margin"
         android:src="@android:drawable/ic_lock_idle_low_battery" />
 
+    <RelativeLayout
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:gravity="bottom"
+        android:visibility="gone"
+        android:layout_centerInParent="true"
+        android:id="@+id/progressbar_layout">
+
+        <ProgressBar
+            android:layout_height="wrap_content"
+            android:layout_width="fill_parent"
+            android:id="@+id/progressbar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_alignParentEnd="true" />
+
+    </RelativeLayout>
 
 </android.support.design.widget.CoordinatorLayout>

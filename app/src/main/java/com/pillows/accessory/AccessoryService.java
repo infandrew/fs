@@ -12,20 +12,20 @@ import com.samsung.android.sdk.SsdkUnsupportedException;
 import com.samsung.android.sdk.accessory.*;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+
+import static com.pillows.phonesafe.Settings.*;
 
 /**
  * Created by agudz on 06/01/16.
  */
 public class AccessoryService extends SAAgent {
-    private static final String TAG = "PhoneSafe";
-    private static final int HELLOACCESSORY_CHANNEL_ID = 666;
+
     private static final Class<ServiceConnection> SASOCKET_CLASS = ServiceConnection.class;
     private final IBinder mBinder = new LocalBinder();
     private ServiceConnection mConnectionHandler = null;
-    Handler mHandler = new Handler();
+    private Handler mHandler = new Handler();
+    private SAPeerAgent peerAgent;
+    private String delaySendData = null;
 
     public AccessoryService() {
         super(TAG, SASOCKET_CLASS);
@@ -58,17 +58,47 @@ public class AccessoryService extends SAAgent {
         return mBinder;
     }
 
-    @Override
-    protected void onFindPeerAgentResponse(SAPeerAgent peerAgent, int result) {
-        Log.d(TAG, "onFindPeerAgentResponse : result =" + result);
+    private String s(int resourceId) {
+        return getResources().getString(resourceId);
     }
 
     @Override
-    protected void onServiceConnectionRequested(SAPeerAgent peerAgent) {
-        if (peerAgent != null) {
-            Toast.makeText(getBaseContext(), R.string.ConnectionAcceptedMsg, Toast.LENGTH_SHORT).show();
-            acceptServiceConnectionRequest(peerAgent);
+    protected void onFindPeerAgentResponse(SAPeerAgent peerAgent, int result) {
+        switch (result) {
+            case SAAgent.PEER_AGENT_FOUND:
+                this.peerAgent = peerAgent;
+                //requestServiceConnection(peerAgent);
+                break;
+            case SAAgent.FINDPEER_DEVICE_NOT_CONNECTED:
+                Toast.makeText(getApplicationContext(), R.string.GearNotConnected, Toast.LENGTH_LONG).show();
+                Log.d(TAG, s(R.string.GearNotConnected));
+                break;
+            case SAAgent.FINDPEER_SERVICE_NOT_FOUND:
+                Toast.makeText(getApplicationContext(), R.string.GearNotFound, Toast.LENGTH_LONG).show();
+                Log.d(TAG, s(R.string.GearNotFound));
+                break;
+            default:
+                Toast.makeText(getApplicationContext(), R.string.NoPeersFound, Toast.LENGTH_LONG).show();
+                Log.d(TAG, s(R.string.NoPeersFound));
         }
+    }
+
+    @Override
+    protected void onPeerAgentUpdated(SAPeerAgent peerAgent, int result) {
+        this.peerAgent = peerAgent;
+        final int status = result;
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (status == SAAgent.PEER_AGENT_AVAILABLE) {
+                    Toast.makeText(getApplicationContext(), R.string.PeerAvailable, Toast.LENGTH_LONG).show();
+                    Log.d(TAG, s(R.string.PeerAvailable));
+                } else {
+                    Toast.makeText(getApplicationContext(), R.string.PeerNotAvailable, Toast.LENGTH_LONG).show();
+                    Log.d(TAG, s(R.string.PeerNotAvailable));
+                }
+            }
+        });
     }
 
     @Override
@@ -80,20 +110,53 @@ public class AccessoryService extends SAAgent {
         } else if (result == SAAgent.CONNECTION_ALREADY_EXIST) {
             Log.e(TAG, "onServiceConnectionResponse, CONNECTION_ALREADY_EXIST");
         }
-    }
-
-    @Override
-    protected void onAuthenticationResponse(SAPeerAgent peerAgent, SAAuthenticationToken authToken, int error) {
-        /*
-         * The authenticatePeerAgent(peerAgent) API may not be working properly depending on the firmware
-         * version of accessory device. Please refer to another sample application for Security.
-         */
+        if (delaySendData != null && mConnectionHandler != null)
+        {
+            sendData(delaySendData);
+            delaySendData = null;
+        }
     }
 
     @Override
     protected void onError(SAPeerAgent peerAgent, String errorMessage, int errorCode) {
         super.onError(peerAgent, errorMessage, errorCode);
     }
+
+    public void findPeers() {
+        findPeerAgents();
+    }
+
+    public boolean openConnection() {
+        if (peerAgent != null) {
+            requestServiceConnection(peerAgent);
+            return true;
+        }
+        return false;
+    }
+
+    public void sendData(final String data) {
+        if (mConnectionHandler != null) {
+            try {
+                mConnectionHandler.send(ACTION_CHANNEL, data.getBytes());
+                return;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        delaySendData = data;
+        openConnection();
+    }
+
+    public boolean closeConnection() {
+        if (mConnectionHandler != null) {
+            mConnectionHandler.close();
+            mConnectionHandler = null;
+            return true;
+        }
+        return false;
+    }
+
+
 
     public class LocalBinder extends Binder {
         public AccessoryService getService() {
@@ -115,25 +178,17 @@ public class AccessoryService extends SAAgent {
             if (mConnectionHandler == null) {
                 return;
             }
-            Calendar calendar = new GregorianCalendar();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd aa hh:mm:ss.SSS");
-            String timeStr = " " + dateFormat.format(calendar.getTime());
-            String strToUpdateUI = new String(data);
+            String receivedString = new String(data);
 
-            Log.w(TAG, "before toast " + strToUpdateUI);
-            Toast.makeText(getBaseContext(), strToUpdateUI, Toast.LENGTH_SHORT).show();
-            Log.w(TAG, "after toast " + strToUpdateUI);
+            String log = String.format("Received string: %s channel %s", receivedString, channelId);
+            Log.d(TAG, log);
+            Toast.makeText(getBaseContext(), log, Toast.LENGTH_SHORT).show();
+            switch(channelId)
+            {
+                case ACTION_CHANNEL:
+                    break;
+            }
 
-            final String message = strToUpdateUI.concat(timeStr);
-            new Thread(new Runnable() {
-                public void run() {
-                    try {
-                        mConnectionHandler.send(HELLOACCESSORY_CHANNEL_ID, message.getBytes());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }).start();
         }
 
         @Override

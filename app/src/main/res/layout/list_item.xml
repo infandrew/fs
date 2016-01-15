@@ -13,6 +13,16 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
+    <ImageView
+        android:id="@+id/list_item_enc"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_toStartOf="@+id/list_item_delete"
+        android:background="@android:color/transparent"
+        android:visibility="invisible"
+        android:src="@drawable/safe_icon" />
+
     <ImageButton
         android:id="@+id/list_item_delete"
         android:layout_width="wrap_content"

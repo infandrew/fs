@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.pillows.phonesafe"
-        minSdkVersion 18
+        minSdkVersion 19
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -38,6 +38,10 @@ dependencies {
 
     testCompile 'junit:junit:4.12'
     testCompile 'commons-io:commons-io:2.4'
+    testCompile 'org.powermock:powermock:1.6.4'
+    testCompile 'org.mockito:mockito-all:1.10.19'
+    testCompile 'org.powermock:powermock-api-mockito:1.6.4'
+    testCompile 'org.powermock:powermock-module-junit4:1.6.4'
 
     androidTestCompile 'commons-io:commons-io:2.4'
 
