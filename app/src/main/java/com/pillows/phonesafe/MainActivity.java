@@ -4,6 +4,7 @@ import android.app.ProgressDialog;
 import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.net.Uri;
@@ -31,6 +32,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.nononsenseapps.filepicker.FilePickerActivity;
+import com.pillows.accessory.AccessoryCallback;
 import com.pillows.accessory.AccessoryService;
 import com.pillows.encryption.Encryptor;
 import com.pillows.saver.DataSaver;
@@ -45,15 +47,18 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.pillows.phonesafe.Settings.*;
+import static com.pillows.phonesafe.ActionMode.*;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements AccessoryCallback {
 
     private static final int FILE_SELECT_CODE1 = 0;
+
     private StableArrayAdapter adapter;
     private RelativeLayout progressBarLayout;
     private ProgressBar progressBar;
     private boolean mIsBound = false;
     private AccessoryService mConsumerService = null;
+    private String currentAction = ACTION_NOTHING;
 
     /**
      * Object to establish connection between MainActivity and AccessoryService
@@ -62,6 +67,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
             mConsumerService = ((AccessoryService.LocalBinder) service).getService();
+            mConsumerService.setCallbacks(MainActivity.this);
+
             Log.d(Settings.TAG, "ServiceConnected");
             mConsumerService.findPeers();
         }
@@ -203,8 +210,7 @@ public class MainActivity extends AppCompatActivity {
         encfab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                gearWaiting();
-                //new EncProgressTask().execute();
+                callGear(ACTION_CLOSE);
             }
         });
 
@@ -212,7 +218,7 @@ public class MainActivity extends AppCompatActivity {
         decfab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                new DecProgressTask().execute();
+                callGear(ACTION_OPEN);
             }
         });
     }
@@ -333,6 +339,13 @@ public class MainActivity extends AppCompatActivity {
 
     class EncProgressTask extends AsyncTask<Void, Integer, Void>
     {
+        ProgressDialog dialog;
+        String key;
+
+        public EncProgressTask(String key) {
+            this.key = key;
+        }
+
         @Override
         protected Void doInBackground(Void... params)
         {
@@ -342,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
 
             List<FileDetails> files = adapter.getItems();
 
-            Encryptor enc = new Encryptor(Settings.TEST_KEY);
+            Encryptor enc = new Encryptor(key);
 
             int i = 0, filesCount = files.size();
 
@@ -350,8 +363,7 @@ public class MainActivity extends AppCompatActivity {
                 if(!file.isEncrypted() && enc.encrypt(file.getPath())) {
                     file.setEncrypted(true);
                 }
-                i++;
-                publishProgress((int) ((i / (float) filesCount) * 100));
+                publishProgress(++i);
 
                 // Escape early if cancel() is called
                 if (isCancelled()) break;
@@ -363,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onCancelled() {
             super.onCancelled();
             adapter.notifyDataSetChanged();
-            progressBarLayout.setVisibility(View.INVISIBLE);
+            dialog.dismiss();
         }
 
         @Override
@@ -372,22 +384,18 @@ public class MainActivity extends AppCompatActivity {
             super.onPreExecute();
 
             List<FileDetails> files = adapter.getItems();
-            for (FileDetails file : files) {
-                if (file.isEncrypted()) {
-                    Toast.makeText(getApplicationContext(),
-                            "Some files are already encrypted",
-                            Toast.LENGTH_SHORT).show();
-                    cancel(true);
-                    return;
-                }
-            }
-
-            progressBarLayout.setVisibility(View.VISIBLE);
+            dialog = new ProgressDialog(MainActivity.this);
+            dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+            dialog.setMessage("Please wait file encryption");
+            dialog.setIndeterminate(false);
+            dialog.setMax(files.size());
+            dialog.setCancelable(false);
+            dialog.show();
         }
 
         @Override
         protected void onProgressUpdate(Integer... progress) {
-            progressBar.setProgress(progress[0]);
+            dialog.setProgress(progress[0]);
         }
 
         @Override
@@ -395,13 +403,19 @@ public class MainActivity extends AppCompatActivity {
         {
             super.onPostExecute(result);
             adapter.notifyDataSetChanged();
-            progressBarLayout.setVisibility(View.INVISIBLE);
+            dialog.dismiss();
         }
-
     }
 
     class DecProgressTask extends AsyncTask<Void, Integer, Void>
     {
+        ProgressDialog dialog;
+        String key;
+
+        public DecProgressTask(String key) {
+            this.key = key;
+        }
+
         @Override
         protected Void doInBackground(Void... params) {
             if (isCancelled()) return null;
@@ -410,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
 
             List<FileDetails> files = adapter.getItems();
 
-            Encryptor enc = new Encryptor(Settings.TEST_KEY);
+            Encryptor enc = new Encryptor(key);
 
             int i = 0, filesCount = files.size();
 
@@ -419,7 +433,7 @@ public class MainActivity extends AppCompatActivity {
                     file.setEncrypted(false);
                 }
                 i++;
-                publishProgress((int) ((i / (float) filesCount) * 100));
+                publishProgress(++i);
 
                 // Escape early if cancel() is called
                 if (isCancelled()) break;
@@ -431,19 +445,27 @@ public class MainActivity extends AppCompatActivity {
         protected void onCancelled() {
             super.onCancelled();
             adapter.notifyDataSetChanged();
-            progressBarLayout.setVisibility(View.INVISIBLE);
+            dialog.dismiss();
         }
 
         @Override
         protected void onPreExecute()
         {
             super.onPreExecute();
-            progressBarLayout.setVisibility(View.VISIBLE);
+
+            List<FileDetails> files = adapter.getItems();
+            dialog = new ProgressDialog(MainActivity.this);
+            dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+            dialog.setMessage("Please wait file decryption");
+            dialog.setIndeterminate(false);
+            dialog.setMax(files.size());
+            dialog.setCancelable(false);
+            dialog.show();
         }
 
         @Override
         protected void onProgressUpdate(Integer... progress) {
-            progressBar.setProgress(progress[0]);
+            dialog.setProgress(progress[0]);
         }
 
         @Override
@@ -451,26 +473,50 @@ public class MainActivity extends AppCompatActivity {
         {
             super.onPostExecute(result);
             adapter.notifyDataSetChanged();
-            progressBarLayout.setVisibility(View.INVISIBLE);
+            dialog.dismiss();
         }
-
     }
 
 
-    private void gearWaiting() {
-        final ProgressDialog dialog = ProgressDialog.show(MainActivity.this,
-                "Waiting for Gear...", "You have 60 sec to input correct code", true);
+    private void callGear(String gearAction) {
+        final ProgressDialog dialog = new ProgressDialog(MainActivity.this);
+        dialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+        dialog.setTitle("Waiting for Gear...");
+        dialog.setMessage("You have 60 sec to input safe code");
+        //dialog.setIndeterminate(false);
+        //dialog.setCancelable(false);
+        //dialog.setMax(60);
+        //dialog.setOnCancelListener(cancelListener);
+        dialog.show();
 
-        mConsumerService.sendData(ACTION_CLOSE);
+        currentAction = gearAction;
+        mConsumerService.sendData(gearAction);
 
-        new CountDownTimer(10000, 1000) {
+        new CountDownTimer(60000, 1000) {
             public void onTick(long millisUntilFinished) {
-                // You can monitor the progress here as well by changing the onTick() time
+                if (currentAction.equals(ACTION_NOTHING))
+                    dialog.dismiss();
             }
             public void onFinish() {
+                currentAction = ACTION_NOTHING;
                 dialog.dismiss();
             }
         }.start();
+    }
+
+
+    @Override
+    public void gearResponse(String data) {
+        switch(currentAction) {
+            case ACTION_CLOSE:
+                new EncProgressTask(data).execute();
+                break;
+            case ACTION_OPEN:
+                new DecProgressTask(data).execute();
+                break;
+            default:
+        }
+        currentAction = ACTION_NOTHING;
     }
 
 }

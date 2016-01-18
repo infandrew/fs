@@ -7,6 +7,7 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.pillows.phonesafe.MainActivity;
 import com.pillows.phonesafe.R;
 import com.samsung.android.sdk.SsdkUnsupportedException;
 import com.samsung.android.sdk.accessory.*;
@@ -23,6 +24,8 @@ public class AccessoryService extends SAAgent {
     private static final Class<ServiceConnection> SASOCKET_CLASS = ServiceConnection.class;
     private final IBinder mBinder = new LocalBinder();
     private ServiceConnection mConnectionHandler = null;
+    private AccessoryCallback callbacks;
+
     private Handler mHandler = new Handler();
     private SAPeerAgent peerAgent;
     private String delaySendData = null;
@@ -156,7 +159,9 @@ public class AccessoryService extends SAAgent {
         return false;
     }
 
-
+    public void setCallbacks(AccessoryCallback callbacks) {
+        this.callbacks = callbacks;
+    }
 
     public class LocalBinder extends Binder {
         public AccessoryService getService() {
@@ -178,14 +183,16 @@ public class AccessoryService extends SAAgent {
             if (mConnectionHandler == null) {
                 return;
             }
-            String receivedString = new String(data);
+            final String receivedString = new String(data);
 
-            String log = String.format("Received string: %s channel %s", receivedString, channelId);
+            String log = String.format("Received string: %s", receivedString);
             Log.d(TAG, log);
             Toast.makeText(getBaseContext(), log, Toast.LENGTH_SHORT).show();
             switch(channelId)
             {
                 case ACTION_CHANNEL:
+                    if(callbacks != null)
+                        callbacks.gearResponse(receivedString);
                     break;
             }
 

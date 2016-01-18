@@ -9,6 +9,7 @@ final public class Settings {
 
     public static final String ACTION_CLOSE = "close";
     public static final String ACTION_OPEN = "open";
+    public static final String ACTION_NOTHING = "nothing";
 
     public static final int ACTION_CHANNEL = 228;
 
