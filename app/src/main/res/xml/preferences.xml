@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="@string/PrefCategory1"
+        android:key="pref_category_1">
+        <CheckBoxPreference
+            android:key="pref_secure_delete"
+            android:title="@string/PrefSecureDeleteTitle"
+            android:summary="@string/PrefSecureDeleteDetails"
+            android:defaultValue="true" />
+    </PreferenceCategory>
+</PreferenceScreen>

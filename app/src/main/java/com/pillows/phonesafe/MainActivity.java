@@ -7,12 +7,14 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -38,7 +40,6 @@ import com.pillows.encryption.Encryptor;
 import com.pillows.saver.DataSaver;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,7 +48,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.pillows.phonesafe.Settings.*;
-import static com.pillows.phonesafe.ActionMode.*;
 
 public class MainActivity extends AppCompatActivity implements AccessoryCallback {
 
@@ -170,8 +170,8 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         progressBarLayout = (RelativeLayout) findViewById(R.id.progressbar_layout);
         progressBar = (ProgressBar) findViewById(R.id.progressbar);
 
-            final List<FileDetails> items = (List) DataSaver.deserialize(getCacheDir());
-        for (FileDetails item: items)
+        final List<FileDetails> items = (List) DataSaver.deserialize(getCacheDir());
+        for (FileDetails item : items)
             item.setEncrypted(Encryptor.checkWatermark(item.getPath()));
 
         final ListView listview = (ListView) findViewById(R.id.listview);
@@ -210,7 +210,10 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         encfab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                callGear(ACTION_CLOSE);
+                if (DEBUG)
+                    new EncProgressTask(TEST_KEY).execute();
+                else
+                    callGear(ACTION_CLOSE);
             }
         });
 
@@ -218,7 +221,10 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         decfab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                callGear(ACTION_OPEN);
+                if (DEBUG)
+                    new DecProgressTask(TEST_KEY).execute();
+                else
+                    callGear(ACTION_OPEN);
             }
         });
     }
@@ -232,19 +238,14 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                startActivity(new Intent(this, SettingsActivity.class));
+                break;
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        if (id == R.id.action_reconnect) {
-            mConsumerService.findPeers();
-            return true;
+            case R.id.action_reconnect:
+                mConsumerService.findPeers();
+                break;
         }
 
         return super.onOptionsItemSelected(item);
@@ -261,7 +262,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
             super(context, viewId, items);
             this.items = items;
             this.itemsMap = new HashMap<String, FileDetails>();
-            for(FileDetails d: items)
+            for (FileDetails d : items)
                 itemsMap.put(d.getPath(), d);
             this.context = context;
         }
@@ -272,7 +273,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
 
         public List<String> getItemsPaths() {
             List<String> paths = new ArrayList<String>();
-            for (FileDetails item: items) {
+            for (FileDetails item : items) {
                 if (!item.isEncrypted())
                     paths.add(item.getPath());
             }
@@ -280,7 +281,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         }
 
         public void addAll(Collection<? extends FileDetails> newItems) {
-            for (FileDetails possibleItem: newItems) {
+            for (FileDetails possibleItem : newItems) {
                 add(possibleItem);
             }
         }
@@ -302,20 +303,20 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
             }
 
             //Handle TextView and display string from your list
-            TextView listItemText = (TextView)view.findViewById(R.id.list_item_text);
+            TextView listItemText = (TextView) view.findViewById(R.id.list_item_text);
             listItemText.setText(items.get(position).getPath());
 
             //Handle buttons and add onClickListeners
-            ImageButton deleteBtn = (ImageButton)view.findViewById(R.id.list_item_delete);
-            ImageView encImage = (ImageView)view.findViewById(R.id.list_item_enc);
+            ImageButton deleteBtn = (ImageButton) view.findViewById(R.id.list_item_delete);
+            ImageView encImage = (ImageView) view.findViewById(R.id.list_item_enc);
 
             FileDetails fileDetails = items.get(position);
-            if(fileDetails.isEncrypted())
+            if (fileDetails.isEncrypted())
                 encImage.setVisibility(View.VISIBLE);
             else
                 encImage.setVisibility(View.INVISIBLE);
 
-            deleteBtn.setOnClickListener(new View.OnClickListener(){
+            deleteBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     String filePath = items.get(position).getPath();
@@ -331,36 +332,35 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         }
 
         public void addAll(Set<String> pickedFiles) {
-            for (String possibleItem: pickedFiles) {
+            for (String possibleItem : pickedFiles) {
                 add(new FileDetails(possibleItem));
             }
         }
     }
 
-    class EncProgressTask extends AsyncTask<Void, Integer, Void>
-    {
+    class EncProgressTask extends AsyncTask<Void, Integer, Void> {
         ProgressDialog dialog;
         String key;
+        boolean prefSecureDelete = true;
 
         public EncProgressTask(String key) {
             this.key = key;
         }
 
         @Override
-        protected Void doInBackground(Void... params)
-        {
+        protected Void doInBackground(Void... params) {
             if (isCancelled()) return null;
 
             publishProgress(0);
 
             List<FileDetails> files = adapter.getItems();
 
-            Encryptor enc = new Encryptor(key);
+            Encryptor enc = new Encryptor(key, prefSecureDelete);
 
             int i = 0, filesCount = files.size();
 
             for (FileDetails file : files) {
-                if(!file.isEncrypted() && enc.encrypt(file.getPath())) {
+                if (!file.isEncrypted() && enc.encrypt(file.getPath())) {
                     file.setEncrypted(true);
                 }
                 publishProgress(++i);
@@ -379,8 +379,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         }
 
         @Override
-        protected void onPreExecute()
-        {
+        protected void onPreExecute() {
             super.onPreExecute();
 
             List<FileDetails> files = adapter.getItems();
@@ -391,6 +390,11 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
             dialog.setMax(files.size());
             dialog.setCancelable(false);
             dialog.show();
+            dialog.setProgress(0);
+
+            SharedPreferences sharedPref = PreferenceManager
+                    .getDefaultSharedPreferences(MainActivity.this);
+            prefSecureDelete = sharedPref.getBoolean(SettingsActivity.PREF_SEC_DEL, true);
         }
 
         @Override
@@ -399,16 +403,14 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         }
 
         @Override
-        protected void onPostExecute(Void result)
-        {
+        protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             adapter.notifyDataSetChanged();
             dialog.dismiss();
         }
     }
 
-    class DecProgressTask extends AsyncTask<Void, Integer, Void>
-    {
+    class DecProgressTask extends AsyncTask<Void, Integer, Void> {
         ProgressDialog dialog;
         String key;
 
@@ -432,7 +434,6 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
                 if (file.isEncrypted() && enc.decrypt(file.getPath())) {
                     file.setEncrypted(false);
                 }
-                i++;
                 publishProgress(++i);
 
                 // Escape early if cancel() is called
@@ -449,8 +450,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         }
 
         @Override
-        protected void onPreExecute()
-        {
+        protected void onPreExecute() {
             super.onPreExecute();
 
             List<FileDetails> files = adapter.getItems();
@@ -461,6 +461,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
             dialog.setMax(files.size());
             dialog.setCancelable(false);
             dialog.show();
+            dialog.setProgress(0);
         }
 
         @Override
@@ -469,8 +470,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         }
 
         @Override
-        protected void onPostExecute(Void result)
-        {
+        protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             adapter.notifyDataSetChanged();
             dialog.dismiss();
@@ -486,17 +486,23 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
         //dialog.setIndeterminate(false);
         //dialog.setCancelable(false);
         //dialog.setMax(60);
-        //dialog.setOnCancelListener(cancelListener);
+        dialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                currentAction = ACTION_NOTHING;
+            }
+        });
         dialog.show();
 
         currentAction = gearAction;
         mConsumerService.sendData(gearAction);
 
-        new CountDownTimer(60000, 1000) {
+        new CountDownTimer(CALL_GEAR_DELAY, 1000) {
             public void onTick(long millisUntilFinished) {
                 if (currentAction.equals(ACTION_NOTHING))
                     dialog.dismiss();
             }
+
             public void onFinish() {
                 currentAction = ACTION_NOTHING;
                 dialog.dismiss();
@@ -507,7 +513,7 @@ public class MainActivity extends AppCompatActivity implements AccessoryCallback
 
     @Override
     public void gearResponse(String data) {
-        switch(currentAction) {
+        switch (currentAction) {
             case ACTION_CLOSE:
                 new EncProgressTask(data).execute();
                 break;

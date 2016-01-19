@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#22d9f1</color>
+    <color name="colorPrimary">#1cb5c9</color>
 
     <!-- Top bar background  -->
-    <color name="colorPrimaryDark">#22d9f1</color>
-    <color name="colorAccent">#22d9f1</color>
+    <color name="colorPrimaryDark">#1cb5c9</color>
+    <color name="colorAccent">#1cb5c9</color>
 
 </resources>
 <!--
     <color name="colorPrimary">#3F51B5</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
+
+    #1cb5c9
+    #22d9f1
 -->

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">PhoneSafe</string>
+    <string name="app_name">Storage Safe</string>
     <string name="action_settings">Settings</string>
     <string name="action_reconnect">Reconnect</string>
 
@@ -14,4 +14,7 @@
     <string name="ConnectionAcceptedMsg">Gear connected</string>
     <string name="ListviewEmptyMessage">Please add files to Safe</string>
 
+    <string name="PrefCategory1">Encryption</string>
+    <string name="PrefSecureDeleteTitle">Secure delete</string>
+    <string name="PrefSecureDeleteDetails">After encryption original file will be deleted forever (turn off to speed up encryption process)</string>
 </resources>

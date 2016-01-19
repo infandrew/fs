@@ -39,6 +39,7 @@ public class Encryptor {
 
     private Cipher encCipher = null;
     private Cipher decCipher = null;
+    private boolean prefSecureDelete = true;
 
     /**
      * Constructor
@@ -46,7 +47,17 @@ public class Encryptor {
      * @param key string key
      */
     public Encryptor(String key) {
-        this(key, DEFAULT_PROVIDER);
+        this(key, DEFAULT_PROVIDER, true);
+    }
+
+    /**
+     * Constructor
+     *
+     * @param key string key
+     */
+    public Encryptor(String key, boolean prefSecureDelete) {
+        this(key, DEFAULT_PROVIDER, prefSecureDelete);
+
     }
 
     /**
@@ -54,7 +65,7 @@ public class Encryptor {
      *
      * @param key
      */
-    public Encryptor(String key, String provider) {
+    public Encryptor(String key, String provider, boolean prefSecureDelete) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(generate128ByteKey(key, provider), "AES");
             encCipher = Cipher.getInstance("AES");
@@ -66,6 +77,8 @@ public class Encryptor {
             e.printStackTrace();
             Log.w(TAG, String.format("Failed to init Encryptor"));
         }
+
+        this.prefSecureDelete = prefSecureDelete;
     }
 
     /**
@@ -122,6 +135,8 @@ public class Encryptor {
      */
     public boolean encrypt(String oriPath, String encPath) {
 
+        long t1 = System.currentTimeMillis();
+
         boolean pathNotChanged = false;
         File oriFile = new File(oriPath);
         File encFile = new File(encPath);
@@ -137,17 +152,18 @@ public class Encryptor {
                 return false;
             }
         }
+        Log.d("PhoneSafe", oriFile + " 1 " + (System.currentTimeMillis() - t1));
 
         try (FileInputStream fis = new FileInputStream(oriPath);
              FileOutputStream fos = new FileOutputStream(encPath);
              CipherOutputStream cos = new CipherOutputStream(fos, encCipher);) {
 
             // some kind of watermark
-            int b = 8;
+            int b = 1024;
             byte[] d = new byte[b];
 
             // write watermark
-            fos.write(WATERMARK, 0, b);
+            fos.write(WATERMARK, 0, WATERMARK.length);
             // write sha1 checksum 20-byte  (+4-byte empty)
             byte[] sha1 = sha1(oriFile);
             fos.write(sha1, 0, 32);
@@ -162,12 +178,20 @@ public class Encryptor {
             return false;
         }
 
+        Log.d("PhoneSafe", oriFile + " 2 " + (System.currentTimeMillis() - t1));
+
+        Log.d("PhoneSafe", "" + prefSecureDelete);
         try {
-            secureDelete(oriFile);
+            if (prefSecureDelete)
+                secureDelete(oriFile);
+            else
+                oriFile.delete();
         } catch (Exception e) {
             Log.e(TAG, String.format("Failed on deleting of %s", oriPath));
             return false;
         }
+
+        Log.d("PhoneSafe", oriFile + " 3 " + (System.currentTimeMillis() - t1));
 
         if (pathNotChanged) {
             try {
@@ -177,6 +201,9 @@ public class Encryptor {
                 return false;
             }
         }
+
+        Log.d("PhoneSafe", oriFile + " 4 " + (System.currentTimeMillis() - t1));
+
         return true;
     }
 
@@ -187,6 +214,8 @@ public class Encryptor {
      * @param decPath path to encrypted file
      */
     public boolean decrypt(String oriPath, String decPath) {
+
+        long t1 = System.currentTimeMillis();
 
         boolean pathNotChanged = false;
         File oriFile = new File(oriPath);
@@ -204,6 +233,8 @@ public class Encryptor {
             }
         }
 
+        Log.d("PhoneSafe", oriFile + " 1 " + (System.currentTimeMillis() - t1));
+
         byte[] sha1 = new byte[32];
         byte[] expectedSha1 = new byte[32];
 
@@ -211,16 +242,16 @@ public class Encryptor {
              FileOutputStream fos = new FileOutputStream(decPath);
              CipherOutputStream cos = new CipherOutputStream(fos, decCipher);) {
 
-            // some kind of watermark
-            int b = 8;
-            byte[] d = new byte[8];
-            fis.read(d);
+            byte[] watermarkCheck = new byte[WATERMARK.length];
+            fis.read(watermarkCheck);
 
-            if (!Arrays.equals(d, WATERMARK))
+            if (!Arrays.equals(watermarkCheck, WATERMARK))
                 throw new Exception("Can't find watermark");
 
             fis.read(sha1);
 
+            int b = 1024;
+            byte[] d = new byte[b];
             while ((b = fis.read(d)) != -1)
                 cos.write(d, 0, b);
 
@@ -229,6 +260,8 @@ public class Encryptor {
             decFile.delete();
             return false;
         }
+
+        Log.d("PhoneSafe", oriFile + " 2 " + (System.currentTimeMillis() - t1));
 
         try {
             expectedSha1 = sha1(decFile);
@@ -240,6 +273,8 @@ public class Encryptor {
             return false;
         }
 
+        Log.d("PhoneSafe", oriFile + " 3 " + (System.currentTimeMillis() - t1));
+
         oriFile.delete();
 
         if (pathNotChanged) {
@@ -250,6 +285,9 @@ public class Encryptor {
                 return false;
             }
         }
+
+        Log.d("PhoneSafe", oriFile + " 4 " + (System.currentTimeMillis() - t1));
+
         return true;
     }
 
@@ -306,7 +344,7 @@ public class Encryptor {
             RandomAccessFile raf = new RandomAccessFile(file, "rws");
             raf.seek(0);
             raf.getFilePointer();
-            byte[] data = new byte[64];
+            byte[] data = new byte[4096];
             int pos = 0;
             while (pos < length) {
                 random.nextBytes(data);
